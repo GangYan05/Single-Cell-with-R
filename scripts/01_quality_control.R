@@ -1,5 +1,14 @@
-library(scater)
-library(scRNAseq)
+# Define the packages to install
+bioc_packages <- c("SingleCellExperiment", "scuttle", "scran", "scater", "uwot", 
+                   "rtracklayer", "DropletUtils", "batchelor", "bluster", "ensembldb", 
+                   "org.Mm.eg.db", "org.Hs.eg.db", "DropletTestFiles", "scRNAseq")
+cran_packages <- c("uwot", "dynamicTreeCut")
+
+# install and load the packages
+install_and_load_packages(bioc_pkgs = bioc_packages, cran_pkgs = cran_packages)
+
+
+
 
 # Load the single-cell data
 sce <- MacoskoRetinaData()

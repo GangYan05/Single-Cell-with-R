@@ -7,16 +7,19 @@ cran_packages <- c("uwot", "dynamicTreeCut")
 # install and load the packages
 install_and_load_packages(bioc_pkgs = bioc_packages, cran_pkgs = cran_packages)
 
-# Load the single-cell data
-sce_count <- load_data_from_tabular("data/raw_data/GSE85241_cellsystems_dataset_4donors_updated.csv.gz", sparse = TRUE)
+# Data path
+raw_fp <- "data/raw_data/E-MTAB-5522/counts_Calero_20160113.tsv"
+meta_fp <- "data/raw_data/E-MTAB-5522/E-MTAB-5522.sdrf.txt" 
+
+# Load the single-cell data and metadata
+sce_count <- load_data_from_tabular(raw_fp, sparse = TRUE)
 
 # Create a SingleCellExperiment object
 sce <- create_single_cell_object(sce_count)
-sce <- scuttle::logNormCounts(sce)
+# sce <- scuttle::logNormCounts(sce)
 
-object.size(sce)
-dim(sce)
-
+# Add metadata to the SingleCellExperiment object
+sce <- add_metadata_from_file(sce, meta_fp, "counts_Calero_20160113.tsv")
 
 
 # Identify mitochondrial genes for quality control

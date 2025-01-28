@@ -37,7 +37,7 @@ install_and_load_packages <- function(bioc_pkgs = NULL, cran_pkgs = NULL) {
 load_data_from_tabular <- function(file_path, sparse = FALSE) {
   if(sparse) {
      message(paste("Loading data from text file:", file_path, "(sparse)"))
-      sparse.mat <- readSparseCounts(file_path)
+      sparse.mat <- readSparseCounts(file_path)[,-1]
       return(sparse.mat)
   } else {
      message(paste("Loading data from text file:", file_path, "(dense)"))
@@ -95,37 +95,6 @@ add_metadata_from_file <- function(sce, meta_path, data_file_name){
     colData(sce) <- coldata
     return(sce)
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 load_data <- function(file_path) {

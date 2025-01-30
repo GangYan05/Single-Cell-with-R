@@ -38,6 +38,7 @@ load_data_from_tabular <- function(file_path, sparse = FALSE) {
   if(sparse) {
      message(paste("Loading data from text file:", file_path, "(sparse)"))
       sparse.mat <- readSparseCounts(file_path)[,-1]
+      sparse.mat 
       return(sparse.mat)
   } else {
      message(paste("Loading data from text file:", file_path, "(dense)"))
@@ -45,6 +46,9 @@ load_data_from_tabular <- function(file_path, sparse = FALSE) {
     return(mat)
   }
 }
+
+grepl("ENSMUSG*", rownames(sce_count))
+
 load_data_from_excel <- function(file_path) {
     message(paste("Loading data from Excel file:", file_path))
     gunzip(file_path, destname = gsub(".gz$","",file_path), remove=FALSE, overwrite=TRUE)
@@ -125,3 +129,4 @@ normalize_counts <- function(counts) {
   normalized_counts <- logNormCounts(counts)
   return(normalized_counts)
 }
+

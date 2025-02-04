@@ -38,12 +38,10 @@ load_data_from_tabular <- function(file_path, sparse = FALSE) {
   if(sparse) {
      message(paste("Loading data from text file:", file_path, "(sparse)"))
       sparse.mat <- readSparseCounts(file_path)[,-1]
-      sparse.mat <- sparse.mat[grepl("ENSMUSG*", rownames(sparse.mat)),]
       return(sparse.mat)
   } else {
      message(paste("Loading data from text file:", file_path, "(dense)"))
       mat <- as.matrix(read.delim(file_path, check.names = FALSE))
-      mat <- mat[grepl("ENSMUSG*", rownames(mat)),]
       return(mat)
   }
 }

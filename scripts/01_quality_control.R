@@ -16,7 +16,6 @@ sce_count <- load_data_from_tabular(raw_fp, sparse = TRUE)
 
 # Create a SingleCellExperiment object
 sce <- create_single_cell_object(sce_count)
-sce <- scuttle::logNormCounts(sce)
 
 # Add metadata to the SingleCellExperiment object
 sce <- add_metadata_from_file(sce, meta_fp, "counts_Calero_20160113.tsv")
@@ -53,3 +52,4 @@ sce <- sce[, !filtered$discard]
 
 # Save quality control metrics to results directory
 saveRDS(qc_df, file = "results/qc_metrics/qc_stats.rds")
+saveRDS(sce, file = "results/SingleCellExperiment.rds")

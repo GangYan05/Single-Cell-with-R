@@ -1,13 +1,17 @@
 library(scater)
 
 # Load the single-cell experiment object
-sce <- readRDS("path/to/your/sce_object.rds")
+sce_lib <- readRDS(file = "results/normalized_data/lib_normalized_sce.rds")
+sce_deconv <- readRDS(file = "results/normalized_data/deconv_normalized_sce.rds")
 
-# Feature selection based on variance
-# Calculate the mean and variance for each gene
-mean_var <- rowData(sce) %>%
-  summarize(mean = rowMeans(logcounts(sce)), 
-            variance = rowVars(logcounts(sce)))
+sce_model <- modelGeneVar(sce_lib)
+sce_fit <- metadata(sce_model)
+
+
+plot(sce_fit$mean, sce_fit$var, xlab="Mean of log-expression",
+    ylab="Variance of log-expression")
+curve(sce_fit$trend(x), col="dodgerblue", add=TRUE, lwd=2)
+
 
 # Select features with high variance
 high_var_genes <- mean_var[mean_var$variance > quantile(mean_var$variance, 0.75), ]

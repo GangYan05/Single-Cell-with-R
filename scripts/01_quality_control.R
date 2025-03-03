@@ -1,8 +1,9 @@
 # Define the packages to install
 bioc_packages <- c("SingleCellExperiment", "scuttle", "scran", "scater", "uwot", 
                    "rtracklayer", "DropletUtils", "batchelor", "bluster", "ensembldb", 
-                   "org.Mm.eg.db", "org.Hs.eg.db", "DropletTestFiles", "scRNAseq", "AnnotationHub")
-cran_packages <- c("uwot", "dynamicTreeCut")
+                   "org.Mm.eg.db", "org.Hs.eg.db", "DropletTestFiles", "scRNAseq", "AnnotationHub",
+                   "PCAtools")
+cran_packages <- c("uwot", "dynamicTreeCut", "dplyr")
 
 # install and load the packages
 install_and_load_packages(bioc_pkgs = bioc_packages, cran_pkgs = cran_packages)

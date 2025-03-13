@@ -29,7 +29,9 @@ This project is designed for the analysis of single-cell RNA sequencing data. It
    - `02_normalization.R`
    - `03_feature_selection.R`
    - `04_dimensionality_reduction.R`
-   - `05_subsetting_combining.R`
+   - `05_clustering.R`
+   - `06_marker_gene`
+   - `07_cell_annotation`
 3. Check the `results` directory for the output of each analysis step.
 
 ## Requirements

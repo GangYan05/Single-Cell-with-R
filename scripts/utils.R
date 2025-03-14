@@ -64,10 +64,6 @@ load_data_from_cellranger <- function(file_path) {
     return(sce)
 }
 
-
-
-
-
 create_single_cell_object <- function(counts, metadata = NULL, spike_mat=NULL, length_data=NULL){
   message("Creating SingleCellExperiment Object")
     sce <- SingleCellExperiment(list(counts=counts))
@@ -130,3 +126,43 @@ normalize_counts <- function(counts) {
 }
 
 
+# Define required 10X files (both compressed and uncompressed versions)
+check_10x_files <- function(data_dir) {
+    required_files <- list(
+        compressed = c(
+            "barcodes.tsv.gz",
+            "features.tsv.gz",
+            "matrix.mtx.gz"
+        ),
+        uncompressed = c(
+            "barcodes.tsv",
+            "features.tsv",
+            "matrix.mtx"
+        )
+    )
+    
+    # Check for compressed files
+    compressed_exists <- all(sapply(required_files$compressed, 
+        function(f) file.exists(file.path(data_dir, f))))
+    
+    # Check for uncompressed files
+    uncompressed_exists <- all(sapply(required_files$uncompressed, 
+        function(f) file.exists(file.path(data_dir, f))))
+    
+    if(!compressed_exists && !uncompressed_exists) {
+        message("Missing required files. Neither compressed nor uncompressed files found.")
+        message("Expected either:")
+        message(paste(" -", required_files$compressed, collapse = "\n"))
+        message("OR")
+        message(paste(" -", required_files$uncompressed, collapse = "\n"))
+        return(FALSE)
+    }
+    
+    # Print which format was found
+    if(compressed_exists) {
+        message("Found compressed 10X files")
+    } else {
+        message("Found uncompressed 10X files")
+    }
+    return(TRUE)
+}

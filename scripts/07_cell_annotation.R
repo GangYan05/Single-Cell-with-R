@@ -8,4 +8,3 @@ table(pred$labels)
 plotScoreHeatmap(pred)
 
 
-

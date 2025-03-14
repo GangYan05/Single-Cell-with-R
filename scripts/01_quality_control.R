@@ -3,17 +3,34 @@ bioc_packages <- c("SingleCellExperiment", "scuttle", "scran", "scater", "uwot",
                    "rtracklayer", "DropletUtils", "batchelor", "bluster", "ensembldb", 
                    "org.Mm.eg.db", "org.Hs.eg.db", "DropletTestFiles", "scRNAseq", "AnnotationHub",
                    "PCAtools", "celldex", "SingleR")
-cran_packages <- c("uwot", "dynamicTreeCut", "dplyr", "pheatmap")
+cran_packages <- c("uwot", "dynamicTreeCut", "dplyr", "pheatmap", "Seurat")
 
 # install and load the packages
 install_and_load_packages(bioc_pkgs = bioc_packages, cran_pkgs = cran_packages)
 
-# Data path
+# Data path of E-MTAB-5522
 raw_fp <- "data/raw_data/E-MTAB-5522/counts_Calero_20160113.tsv"
 meta_fp <- "data/raw_data/E-MTAB-5522/E-MTAB-5522.sdrf.txt" 
+# Data path of GSE176078
+R.utils::gzip("data/raw_data/GSE176078/barcodes.tsv")
+R.utils::gzip("data/raw_data/GSE176078/features.tsv")
+R.utils::gzip("data/raw_data/GSE176078/matrix.mtx")
+
+
+data_dir <- "data/raw_data/GSE176078"
 
 # Load the single-cell data and metadata
-sce_count <- load_data_from_tabular(raw_fp, sparse = TRUE)
+sce_raw <- DropletUtils::read10xCounts(
+    samples = data_dir,
+    col.names = TRUE,
+    type = "sparse"
+)
+sce_raw
+
+
+sce_count <- load_data_from_tabular(raw_fp, sparse = FALSE)
+
+
 
 # Create a SingleCellExperiment object
 sce <- create_single_cell_object(sce_count)

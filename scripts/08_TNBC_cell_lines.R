@@ -127,71 +127,71 @@ saveRDS(qc_metrics, "results/qc_metrics/qc_metrics.rds")
 saveRDS(qc_filters, "results/qc_metrics/qc_filters.rds")
 saveRDS(sce_filtered, "results/sce_filtered.rds")
 
-
-
-# Need to modify the code below
 # Load the filtered SingleCellExperiment object
-sce <- readRDS("results/sce_filtered.rds")
-# 1. Normalize the data
+# sce_filtered <- readRDS("results/sce_filtered.rds")
+# Normalize the data
+
 # Use deconvolution-based size factors
 set.seed(1234)
-clusters <- quickCluster(sce)
-sce <- computeSumFactors(sce, clusters=clusters)
-sce <- logNormCounts(sce)
+clusters <- quickCluster(sce_filtered)
+cluster_size <- table(clusters)
+length(cluster_size)
+mean(cluster_size)
+median(cluster_size)
 
-# 2. Feature selection - identify highly variable genes
-dec <- modelGeneVar(sce)
+sce_filtered <- computeSumFactors(sce_filtered, clusters=clusters)
+
+sce_filtered <- logNormCounts(sce_filtered)
+
+# Feature selection - identify highly variable genes
+dec <- modelGeneVar(sce_filtered)
+
 # Get top 2000 most variable genes
 top_hvgs <- getTopHVGs(dec, n=2000)
 
-# 3. Dimensionality reduction
+# Dimensionality reduction
 # PCA
-sce <- runPCA(sce, subset_row=top_hvgs)
+sce_filtered <- runPCA(sce_filtered, subset_row=top_hvgs)
 
 # UMAP
-sce <- runUMAP(sce, dimred="PCA", n_dimred=20)
+sce_filtered <- runUMAP(sce_filtered, dimred="PCA", n_dimred=20)
 
 # t-SNE
-sce <- runTSNE(sce, dimred="PCA", n_dimred=20)
+sce_filtered <- runTSNE(sce_filtered, dimred="PCA", n_dimred=20)
 
-# 4. Clustering
+# Clustering
 # Graph-based clustering
-g <- buildSNNGraph(sce, k=10, use.dimred="PCA")
+g <- buildSNNGraph(sce_filtered, k=10, use.dimred="PCA")
 clusters <- igraph::cluster_louvain(g)
-colLabels(sce) <- factor(clusters$membership)
+colLabels(sce_filtered) <- factor(clusters$membership)
 
 # 5. Visualization
 # Plot UMAP with clusters
-plotReducedDim(sce, "UMAP", colour_by="label")
+plotReducedDim(sce_filtered, "UMAP", colour_by="label")
 
 # 6. Differential expression analysis
 # Find markers for each cluster
-markers <- findMarkers(sce, groups=colLabels(sce), 
-                      test.type="wilcox", 
-                      direction="up")
+markers <- findMarkers(sce_filtered, groups=colLabels(sce_filtered), test.type="wilcox", direction="up")
 
 # 7. Cell type annotation
 # Load reference data
 ref <- celldex::HumanPrimaryCellAtlasData()
 
 # Perform annotation
-pred <- SingleR(test=sce, 
-                ref=ref,
-                labels=ref$label.main,
-                de.method="wilcox")
+pred <- SingleR(test=sce_filtered, ref=ref, labels=ref$label.main, de.method="wilcox")
 
 # Add cell type labels to the object
-colData(sce)$cell_type <- pred$labels
+colData(sce_filtered)$cell_type <- pred$labels
 
 # 8. Quality visualization
 # Plot number of cells per cluster
-table(colLabels(sce))
+table(colLabels(sce_filtered))
 
 # Plot UMAP with cell types
-plotReducedDim(sce, "UMAP", colour_by="cell_type")
+plotReducedDim(sce_filtered, "UMAP", colour_by="cell_type")
 
 # 9. Save results
-saveRDS(sce, file="results/tnbc_analyzed.rds")
+saveRDS(sce_filtered, file="results/tnbc_analyzed.rds")
 saveRDS(markers, file="results/cluster_markers.rds")
 
 # 10. Generate cluster marker heatmap
@@ -200,54 +200,8 @@ top_markers <- lapply(markers, function(x) {
     head(rownames(x)[x$FDR < 0.05], 10)
 })
 
-plotHeatmap(sce, features=unique(unlist(top_markers)),
+plotHeatmap(sce_filtered, features=unique(unlist(top_markers)),
            columns=order(colLabels(sce)),
            colour_columns_by="label",
            cluster_rows=TRUE,
            show_colnames=FALSE)
-
-
-
-
-
-
-
-
-
-
-# Add metadata to the SingleCellExperiment object
-sce <- add_metadata_from_file(sce, meta_fp, "counts_Calero_20160113.tsv")
-# sce <- addPerCellQC(sce)
-# sce <- addPerFeatureQC(sce)
-
-# Add gene annotation
-ah <- AnnotationHub()
-ens_mm <- ah[["AH75036"]]
-gene_info <- AnnotationDbi::select(ens_mm, keys = rownames(sce), keytype = "GENEID", columns = c("SYMBOL", "SEQNAME", "GENEBIOTYPE"))
-rowData(sce)$SYMBOL <- gene_info$SYMBOL[match(rownames(sce), gene_info$GENEID)]
-rowData(sce)$SEQNAME <- gene_info$SEQNAME[match(rownames(sce), gene_info$GENEID)]
-rowData(sce)$GENEBIOTYPE <- gene_info$GENEBIOTYPE[match(rownames(sce), gene_info$GENEID)]
-
-# Identify Mitochondrial genes using symbols
-is_mito <- grepl("^mt-", rowData(sce)$SYMBOL)
-
-# Calculate quality control metrics
-qc_df <- perCellQCMetrics(sce, subsets = list(Mito = is_mito))
-
-# Identify low-quality cells with fixed thresholds (optional)
-qc_size <- qc_df$sum < 1e5
-qc_nexpression <- qc_df$detected < 5e3
-qc_spike <- qc_df$detected > 1e4
-qc_mito <- qc_df$subsets_Mito_percent > 10
-todrop <- qc_size | qc_nexpression | qc_spike | qc_mito
-DataFrame(LibSize=sum(qc_size), NExprs=sum(qc_nexpression), Spike=sum(qc_spike), Mito=sum(qc_mito), total=sum(todrop))
-
-# Adaptively filter out low-quality cells
-filtered <- perCellQCFilters(qc_df ,sub.fields = c("subsets_Mito_percent"))
-
-# Subset the SingleCellExperiment object to retain only high-quality cells
-sce <- sce[, !filtered$discard]
-
-# Save quality control metrics to results directory
-saveRDS(qc_df, file = "results/qc_metrics/qc_stats.rds")
-saveRDS(sce, file = "results/SingleCellExperiment.rds")

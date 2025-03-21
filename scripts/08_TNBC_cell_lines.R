@@ -145,7 +145,6 @@ sce_filtered <- logNormCounts(sce_filtered)
 
 # Feature selection - identify highly variable genes
 dec <- modelGeneVar(sce_filtered)
-
 # Get top 2000 most variable genes
 top_hvgs <- getTopHVGs(dec, n=2000)
 
@@ -194,14 +193,18 @@ plotReducedDim(sce_filtered, "UMAP", colour_by="cell_type")
 saveRDS(sce_filtered, file="results/tnbc_analyzed.rds")
 saveRDS(markers, file="results/cluster_markers.rds")
 
-# 10. Generate cluster marker heatmap
+# sce_filtered <- readRDS("results/tnbc_analyzed.rds")
+# markers <- readRDS("results/cluster_markers.rds")
+# Generate cluster marker heatmap
 top_markers <- lapply(markers, function(x) {
     x <- as.data.frame(x)
     head(rownames(x)[x$FDR < 0.05], 10)
 })
 
 plotHeatmap(sce_filtered, features=unique(unlist(top_markers)),
-           columns=order(colLabels(sce)),
+           columns=order(colLabels(sce_filtered)),
            colour_columns_by="label",
            cluster_rows=TRUE,
            show_colnames=FALSE)
+
+

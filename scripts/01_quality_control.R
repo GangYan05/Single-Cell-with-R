@@ -2,7 +2,7 @@
 bioc_packages <- c("SingleCellExperiment", "scuttle", "scran", "scater", "uwot", 
                    "rtracklayer", "DropletUtils", "batchelor", "bluster", "ensembldb", 
                    "org.Mm.eg.db", "org.Hs.eg.db", "DropletTestFiles", "scRNAseq", "AnnotationHub",
-                   "PCAtools", "celldex", "SingleR")
+                   "PCAtools", "celldex", "SingleR", "TENxPBMCData")
 cran_packages <- c("uwot", "dynamicTreeCut", "dplyr", "pheatmap", "Seurat")
 
 # install and load the packages

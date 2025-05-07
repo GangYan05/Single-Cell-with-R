@@ -20,14 +20,6 @@ R.utils::gzip("data/raw_data/GSE176078/matrix.mtx")
 data_dir <- "data/raw_data/GSE176078"
 
 # Load the single-cell data and metadata
-sce_raw <- DropletUtils::read10xCounts(
-    samples = data_dir,
-    col.names = TRUE,
-    type = "sparse"
-)
-sce_raw
-
-
 sce_count <- load_data_from_tabular(raw_fp, sparse = FALSE)
 
 
@@ -37,8 +29,7 @@ sce <- create_single_cell_object(sce_count)
 
 # Add metadata to the SingleCellExperiment object
 sce <- add_metadata_from_file(sce, meta_fp, "counts_Calero_20160113.tsv")
-# sce <- addPerCellQC(sce)
-# sce <- addPerFeatureQC(sce)
+
 
 # Add gene annotation
 ah <- AnnotationHub()

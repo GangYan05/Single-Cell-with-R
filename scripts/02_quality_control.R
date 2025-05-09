@@ -1,5 +1,5 @@
 # Calculate quality control metrics
-qc_df <- perCellQCMetrics(sce, subsets = list(Mito = is_mito))
+qc_df <- perCellQCMetrics(sce, subsets=list(Mito = is_mito))
 qc_df
 
 # Identify low-quality cells with fixed thresholds (optional)
@@ -11,27 +11,25 @@ todrop <- qc_size | qc_nexpression | qc_spike | qc_mito
 DataFrame(LibSize=sum(qc_size), NExprs=sum(qc_nexpression), Spike=sum(qc_spike), Mito=sum(qc_mito), total=sum(todrop))
 
 # Adaptively filter out low-quality cells
-tofilter <- quickPerCellQC(qc_df, percent_subsets=c("altexps_ERCC_percent", "subsets_Mito_percent"))
-colSums(as.matrix(tofilter))
+sce_qc <- addPerCellQC(sce, subsets=list(Mito = is_mito))
+tofilter <- quickPerCellQC(colData(sce_qc), sub.fields=c("subsets_Mito_percent", "altexps_ERCC_percent"))
+sce_qc$discard <- tofilter$discard
 
-
-sce_qc <- addPerCellQC(sce)
-sce_qc
-colData(sce_qc)
-plotColData(sce_qc, x="phenotype", y="sum")
-
-colData(sce)
-plotColData(sce, x="total_counts", y="percent_mito", colour_by="discard") +
-    geom_point() +
-    theme_minimal() +
-    labs(title = "Quality Control Metrics",
-         x = "Total Counts",
-         y = "Percent Mitochondrial")
-filtered <- perCellQCFilters(qc_df, sub.fields = c("subsets_Mito_percent"))
+gridExtra::grid.arrange(
+plotColData(sce_qc, x="phenotype", y="sum", colour_by="discard") + 
+    scale_y_log10() + ggtitle("total counts"),
+plotColData(sce_qc, x="phenotype", y="detected", colour_by="discard") +
+    scale_y_log10() + ggtitle("total counts"),
+plotColData(sce_qc, x="phenotype", y="altexps_ERCC_percent", colour_by="discard") +
+    ggtitle("ERCC percent")
+)
 
 # Subset the SingleCellExperiment object to retain only high-quality cells
-sce <- sce[, !filtered$discard]
+sce <- sce[, !sce_qc$discard]
 
-# Save quality control metrics to results directory
+# Check the low-quality cells 
+calculateAver  counts(sce_qc)[, sce_qc$discard]
+
+calculateAver# Save quality control metrics to results directory
 saveRDS(qc_df, file = "results/qc_metrics/qc_stats.rds")
 saveRDS(sce, file = "results/SingleCellExperiment.rds")

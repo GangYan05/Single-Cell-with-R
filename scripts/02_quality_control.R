@@ -1,3 +1,8 @@
+# Load sce object
+sce <- readRDS("results/sce.rds")
+is_mito <- readRDS("results/is_mito.rds")
+coldata <- readRDS("results/coldata.rds")
+
 # Calculate quality control metrics
 qc_df <- perCellQCMetrics(sce, subsets=list(Mito = is_mito))
 qc_df
@@ -27,8 +32,16 @@ plotColData(sce_qc, x="phenotype", y="altexps_ERCC_percent", colour_by="discard"
 # Subset the SingleCellExperiment object to retain only high-quality cells
 sce <- sce[, !sce_qc$discard]
 
-# Check the low-quality cells 
-calculateAver  counts(sce_qc)[, sce_qc$discard]
+# Check the low-quality cells by calculating the average count for each feature.
+lost_cells <- calculateAverage(counts(sce)[, sce_qc$discard])
+keep_cells <- calculateAverage(counts(sce)[, !sce_qc$discard])
+logged <- cpm(cbind(lost_cells, keep_cells), log=TRUE)
+logFC <- logged[, 1] - logged[, 2]
+abundance <- rowMeans(logged)
+
+plot(abundance, logFC, pch=20, cex=0.5, xlab="average abundance", ylab="log fold change")
+points(abundance[is_mito], logFC[is_mito], pch=40, cex=0.5, col="darkblue")
+
 
 calculateAver# Save quality control metrics to results directory
 saveRDS(qc_df, file = "results/qc_metrics/qc_stats.rds")

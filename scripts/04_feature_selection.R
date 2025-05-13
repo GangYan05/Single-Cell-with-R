@@ -1,5 +1,3 @@
-library(scater)
-
 # Load the single-cell experiment object
 sce_lib <- readRDS(file = "results/normalized_data/lib_normalized_sce.rds")
 sce_deconv <- readRDS(file = "results/normalized_data/deconv_normalized_sce.rds")
@@ -18,7 +16,6 @@ sce_model[order(sce_model$bio, decreasing=TRUE), ]
 
 # Select features with high variance
 sce_variable <- getTopHVGs(sce_model, fdr.threshold = 0.05)
-str(sce_variable)
 
 # Save the filtered results
 saveRDS(sce_variable, file = "results/feature_selection/sce_variable.rds")

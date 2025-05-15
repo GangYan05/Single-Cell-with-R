@@ -15,6 +15,9 @@ if(files_status) {
     message(sprintf("Number of cells: %d", ncol(sce_raw)))
 }
 
+is_ercc <- grepl("^ERCC-", rowData(sce_raw)$ID, ignore.case = TRUE)
+
+
 # Define mitochondrial genes (for human data)
 is_mito <- grepl("^MT-", rowData(sce_raw)$ID)
 rowData(sce_raw)$ID[is_mito]

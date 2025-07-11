@@ -126,9 +126,9 @@ cells_removed <- data.frame(
 sce_filtered <- sce_raw[, !qc_filters$discard]
 
 # Save QC results
-saveRDS(qc_metrics, "results/qc_metrics/qc_metrics.rds")
-saveRDS(qc_filters, "results/qc_metrics/qc_filters.rds")
-saveRDS(sce_filtered, "results/sce_filtered.rds")
+saveRDS(qc_metrics, "results/qc_metrics/TNBC_qc_metrics.rds")  
+saveRDS(qc_filters, "results/qc_metrics/TNBC_qc_filters.rds")
+saveRDS(sce_filtered, "results/TNBC_sce_filtered.rds")
 
 # Load the filtered SingleCellExperiment object
 # sce_filtered <- readRDS("results/sce_filtered.rds")

@@ -25,6 +25,14 @@ library(celldex)
 library(SingleR)
 library(pheatmap)
 library(igraph)
+library(Matrix)
+
+if (!requireNamespace("BiocManager", quietly = TRUE)) {
+    install.packages("BiocManager")
+}
+
+BiocManager::install()
+
 
 # Create directories for results if they don't exist
 dir.create("results/melanoma", showWarnings = FALSE, recursive = TRUE)
@@ -35,7 +43,23 @@ dir.create("results/qc_metrics/melanoma", showWarnings = FALSE, recursive = TRUE
 # 1. Data Loading
 # -----------------------------------------------------------------------------
 # Load the Tirosh et al. 2016 melanoma dataset from the scRNAseq package
-sce_raw <- TiroshMelanomaData()
+sce_raw <- read.table("data/GSE72056/GSE72056_melanoma_single_cell_revised_v2.txt", 
+header=TRUE, sep="\t")
+# The first three rows contain metadata, so we will skip them.
+count_df <- sce_raw[-(1:3), ]
+# Find the duplicate gene names
+dup_genes <- sce_raw$Cell[duplicated(sce_raw$Cell)]
+sce_raw[(sce_raw$Cell %in% dup_genes),1:5]
+# Aggregate counts of duplicate genes by summing their counts.
+count_matrix <- as.matrix(count_df[ , !(colnames(count_df) %in% "Cell") ])
+agg_counts <- rowsum(count_matrix, group = count_df$Cell)
+rownames(agg_counts) <- rownames(agg_counts)
+# Load the metadata separately
+sce_meta <- read.table("data/GSE72056/melanoma_cluster_assignment_portal.txt", 
+header=2, sep="\t", )[-1,-1]
+
+sce <- SingleCellExperiment(assays = list(counts=agg_counts), colData = sce_meta)
+colData(sce)
 
 # The data is already a SingleCellExperiment object.
 # Gene identifiers are symbols in the rownames.
@@ -43,33 +67,30 @@ sce_raw <- TiroshMelanomaData()
 
 # Print basic information about the loaded data
 message("Data loaded successfully:")
-message(sprintf("Number of genes: %d", nrow(sce_raw)))
-message(sprintf("Number of cells: %d", ncol(sce_raw)))
+message(sprintf("Number of genes: %d", nrow(sce)))
+message(sprintf("Number of cells: %d", ncol(sce)))
 message("Available metadata columns:")
-print(colnames(colData(sce_raw)))
+print(colnames(colData(sce)))
 
 
 # -----------------------------------------------------------------------------
 # 2. Quality Control (QC)
 # -----------------------------------------------------------------------------
 
-# Identify mitochondrial genes. Gene symbols are in the rownames.
-is_mito <- grepl("^MT-", rownames(sce_raw))
+# Identify mitochondrial genes or ribosomal genes.
+is_mito <- grepl("^MT-|mt-|Mito", rownames(sce))
 message(sprintf("Found %d mitochondrial genes.", sum(is_mito)))
+is_ribo <- grepl("^RPL|^RPS", rownames(sce))
+message(sprintf("Found %d ribosomal genes.", sum(is_ribo)))
 
-# Calculate comprehensive QC metrics using scater
-# The 'sum' is library size, 'detected' is number of expressed genes.
-qc_metrics <- perCellQCMetrics(sce_raw,
-    subsets=list(Mito=is_mito)
-)
-
-# Add QC metrics to the SingleCellExperiment object
-colData(sce_raw) <- cbind(colData(sce_raw), qc_metrics)
+# Calculate comprehensive QC metrics and add QC metrics to the SingleCellExperiment object
+sce <- addPerCellQC(sce, subsets = list(
+    Ribo= is_ribo))
 
 # Determine QC thresholds adaptively using MADs (Median Absolute Deviations)
 # We filter on low library size, low number of features, and high mitochondrial content.
 qc_filters <- perCellQCFilters(qc_metrics,
-    sub.fields=c("sum", "detected", "subsets_Mito_percent"),
+    sub.fields=c("sum", "detected", "subsets_Ribo_percent"),
     nmads=3
 )
 
@@ -77,17 +98,19 @@ qc_filters <- perCellQCFilters(qc_metrics,
 colSums(as.matrix(qc_filters))
 
 # Add the final discard decision to the colData
-colData(sce_raw)$discard <- qc_filters$discard
+colData(sce)$discard <- qc_filters$discard
 
 # Visualize QC metrics
 # Library size distribution
-p1 <- plotColData(sce_raw, x = "patient.id", y = "sum", colour_by = "discard") + 
+p1 <- plotColData(sce, y = "sum", colour_by = "discard") + 
     scale_y_log10() + ggtitle("Library Size")
+
 # Number of expressed genes
-p2 <- plotColData(sce_raw, x = "patient.id", y = "detected", colour_by = "discard") + 
+p2 <- plotColData(sce, y = "detected", colour_by = "discard") + 
     scale_y_log10() + ggtitle("Detected Features")
-# Mitochondrial proportion
-p3 <- plotColData(sce_raw, x = "patient.id", y = "subsets_Mito_percent", colour_by = "discard") + 
+
+# Eibosomal gene proportion
+p3 <- plotColData(sce, y = "subsets_Ribo_percent", colour_by = "discard") + 
     ggtitle("Mitochondrial %")
 
 # Arrange plots
@@ -95,11 +118,10 @@ gridExtra::grid.arrange(p1, p2, p3, ncol=1)
 
 
 # Filter cells based on the discard flag
-sce_filtered <- sce_raw[, !sce_raw$discard]
-
-message(sprintf("Cells before filtering: %d", ncol(sce_raw)))
+sce_filtered <- sce[, !sce$discard]
+message(sprintf("Cells before filtering: %d", ncol(sce)))
 message(sprintf("Cells after filtering: %d", ncol(sce_filtered)))
-message(sprintf("Removed %d cells.", sum(sce_raw$discard)))
+message(sprintf("Removed %d cells.", sum(sce$discard)))
 
 
 # Save QC results

@@ -47,6 +47,7 @@ sce_raw <- read.table("data/GSE72056/GSE72056_melanoma_single_cell_revised_v2.tx
 header=TRUE, sep="\t")
 # The first three rows contain metadata, so we will skip them.
 count_df <- sce_raw[-(1:3), ]
+info <- sce_raw[1:3, ]
 # Find the duplicate gene names
 dup_genes <- sce_raw$Cell[duplicated(sce_raw$Cell)]
 sce_raw[(sce_raw$Cell %in% dup_genes),1:5]

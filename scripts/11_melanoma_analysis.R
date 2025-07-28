@@ -24,15 +24,9 @@ library(ggplot2)
 library(celldex)
 library(SingleR)
 library(pheatmap)
+library(gridExtra)
 library(igraph)
 library(Matrix)
-
-if (!requireNamespace("BiocManager", quietly = TRUE)) {
-    install.packages("BiocManager")
-}
-
-BiocManager::install()
-
 
 # Create directories for results if they don't exist
 dir.create("results/melanoma", showWarnings = FALSE, recursive = TRUE)
@@ -42,7 +36,7 @@ dir.create("results/qc_metrics/melanoma", showWarnings = FALSE, recursive = TRUE
 # -----------------------------------------------------------------------------
 # 1. Data Loading
 # -----------------------------------------------------------------------------
-# Load the Tirosh et al. 2016 melanoma dataset from the scRNAseq package
+# Load the Tirosh et al. 2016 melanoma dataset from local files.
 sce_raw <- read.table("data/GSE72056/GSE72056_melanoma_single_cell_revised_v2.txt", 
 header=TRUE, sep="\t")
 # The first three rows contain metadata, so we will skip them.
@@ -78,9 +72,7 @@ print(colnames(colData(sce)))
 # 2. Quality Control (QC)
 # -----------------------------------------------------------------------------
 
-# Identify mitochondrial genes or ribosomal genes.
-is_mito <- grepl("^MT-|mt-|Mito", rownames(sce))
-message(sprintf("Found %d mitochondrial genes.", sum(is_mito)))
+# Identify ribosomal genes.
 is_ribo <- grepl("^RPL|^RPS", rownames(sce))
 message(sprintf("Found %d ribosomal genes.", sum(is_ribo)))
 
@@ -88,11 +80,14 @@ message(sprintf("Found %d ribosomal genes.", sum(is_ribo)))
 sce <- addPerCellQC(sce, subsets = list(
     Ribo= is_ribo))
 
+# The QC metrics are in colData(sce)
+qc_metrics <- colData(sce)
+
 # Determine QC thresholds adaptively using MADs (Median Absolute Deviations)
-# We filter on low library size, low number of features, and high mitochondrial content.
+# We filter on low library size, low number of features, and high ribosomal content.
 qc_filters <- perCellQCFilters(qc_metrics,
     sub.fields=c("sum", "detected", "subsets_Ribo_percent"),
-    nmads=3
+    nmads = 3
 )
 
 # Summarize how many cells are filtered by each criterion
@@ -110,9 +105,9 @@ p1 <- plotColData(sce, y = "sum", colour_by = "discard") +
 p2 <- plotColData(sce, y = "detected", colour_by = "discard") + 
     scale_y_log10() + ggtitle("Detected Features")
 
-# Eibosomal gene proportion
+# Ribosomal gene proportion
 p3 <- plotColData(sce, y = "subsets_Ribo_percent", colour_by = "discard") + 
-    ggtitle("Mitochondrial %")
+    ggtitle("Ribosomal %")
 
 # Arrange plots
 gridExtra::grid.arrange(p1, p2, p3, ncol=1)
@@ -130,14 +125,16 @@ saveRDS(qc_metrics, "results/qc_metrics/melanoma/melanoma_qc_metrics.rds")
 saveRDS(qc_filters, "results/qc_metrics/melanoma/melanoma_qc_filters.rds")
 saveRDS(sce_filtered, "results/melanoma/melanoma_sce_filtered.rds")
 
-
+qc_metrics <- readRDS("results/qc_metrics/melanoma/melanoma_qc_metrics.rds")
+qc_filters <- readRDS("results/qc_metrics/melanoma/melanoma_qc_filters.rds")
+sce_filtered <- readRDS("results/melanoma/melanoma_sce_filtered.rds")
 # -----------------------------------------------------------------------------
 # 3. Normalization
 # -----------------------------------------------------------------------------
 # Use deconvolution-based size factors for more accurate normalization.
-# This method pools cells with similar expression profiles to estimate size factors.
 set.seed(1234)
 clusters <- quickCluster(sce_filtered)
+summary(clusters)
 sce_filtered <- computeSumFactors(sce_filtered, clusters=clusters)
 
 # Check the size factors
@@ -146,12 +143,10 @@ summary(sizeFactors(sce_filtered))
 # Apply log-transformation to the counts
 sce_filtered <- logNormCounts(sce_filtered)
 
-
 # -----------------------------------------------------------------------------
 # 4. Feature Selection
 # -----------------------------------------------------------------------------
 # Identify highly variable genes (HVGs) to focus on biologically meaningful variation.
-# We model the variance of each gene and select those with high biological components.
 dec <- modelGeneVar(sce_filtered)
 
 # Get top 2000 most variable genes
@@ -159,9 +154,8 @@ top_hvgs <- getTopHVGs(dec, n=2000)
 
 # Visualize the mean-variance trend
 plot(dec$mean, dec$total, xlab="Mean log-expression", ylab="Variance")
-points(dec$mean[top_hvgs], dec$total[top_hvgs], col="red")
+points(dec[top_hvgs, "mean"], dec[top_hvgs, "total"], col="red")
 curve(metadata(dec)$trend(x), col="dodgerblue", add=TRUE)
-
 
 # -----------------------------------------------------------------------------
 # 5. Dimensionality Reduction

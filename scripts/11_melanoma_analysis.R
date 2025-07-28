@@ -54,8 +54,16 @@ sce_meta <- read.table("data/GSE72056/melanoma_cluster_assignment_portal.txt",
 header=2, sep="\t", )[-1,-1]
 
 sce <- SingleCellExperiment(assays = list(counts=agg_counts), colData = sce_meta)
-colData(sce)
 
+# Extract patient ID from complex cell names (e.g., "72" from "Cy72_...", "80" from "cy80-...", "89" from "CY89NEG...").
+# The patient ID is the numeric part immediately following a case-insensitive "Cy" prefix.
+patient_ids <- sub("^cy(\\d+).*", "\\1", rownames(colData(sce)), ignore.case = TRUE)
+
+# For cell names that do not match the "Cy" pattern (e.g., "monika_...", "SS2_..."),
+# the substitution fails and returns the original string. We will label these as "unknown".
+# We identify these by checking for any non-digit characters in the result.
+patient_ids[grepl("[^0-9]", patient_ids)] <- "unknown"
+sce$patient_id <- patient_ids
 # The data is already a SingleCellExperiment object.
 # Gene identifiers are symbols in the rownames.
 # Metadata is in colData.
@@ -179,9 +187,16 @@ clusters_louvain <- igraph::cluster_louvain(g)
 colLabels(sce_filtered) <- factor(clusters_louvain$membership)
 
 # Visualize clusters on the UMAP plot
-plotReducedDim(sce_filtered, "UMAP", colour_by="label", text_by="label") +
+plotReducedDim(sce_filtered, "UMAP", colour_by="CLUSTER", text_by="CLUSTER") +
     ggtitle("UMAP colored by Louvain Clusters")
+# export the figure
+ggsave("results/melanoma/melanoma_umap_clusters.png", width=10, height=10)
 
+# Visualize clusters on the t-SNE plot
+plotReducedDim(sce_filtered, "TSNE", colour_by="CLUSTER", text_by="CLUSTER") +
+    ggtitle("tSNE colored by Louvain Clusters")
+# export the figure
+ggsave("results/melanoma/melanoma_tSNE_clusters.png", width=10, height=10)
 
 # -----------------------------------------------------------------------------
 # 7. Differential Expression Analysis
@@ -240,3 +255,53 @@ saveRDS(sce_filtered, file="results/melanoma/melanoma_analyzed.rds")
 saveRDS(markers, file="results/melanoma/melanoma_cluster_markers.rds")
 
 message("Melanoma analysis complete. Results saved in 'results/melanoma/'.")
+
+
+# -----------------------------------------------------------------------------
+# 10. Comparative Analysis Between Groups
+# (Sub-clustering within the Malignant Population)
+# -----------------------------------------------------------------------------
+# After identifying broad cell types, we can perform a more focused analysis
+# on a specific population to find more subtle heterogeneity. Here, we will
+# take all cells identified as 'malignant' and re-cluster them.
+
+# We will use the 'CLUSTER' column from the original metadata for grouping.
+if ("CLUSTER" %in% colnames(colData(sce_filtered))) {
+    
+    message("Performing sub-clustering on the 'malignant' cell population...")
+    
+    # 1. Subset the data to malignant cells
+    sce_malignant <- sce_filtered[, sce_filtered$CLUSTER == "malignant"]
+    
+    message(sprintf("Found %d malignant cells for sub-clustering.", ncol(sce_malignant)))
+    
+    # 2. Re-run feature selection to find HVGs specific to this subset
+    # This identifies genes that drive variation *within* the malignant cells.
+    dec_malig <- modelGeneVar(sce_malignant)
+    top_hvgs_malig <- getTopHVGs(dec_malig, n=1500) # Using 1500 HVGs for the subset
+    
+    # 3. Re-run dimensionality reduction on the malignant-specific HVGs
+    set.seed(5678)
+    sce_malignant <- runPCA(sce_malignant, subset_row=top_hvgs_malig, name="PCA_malignant")
+    sce_malignant <- runUMAP(sce_malignant, dimred="PCA_malignant", name="UMAP_malignant")
+    
+    # 4. Re-run clustering to find sub-clusters
+    g_malig <- buildSNNGraph(sce_malignant, use.dimred="PCA_malignant", k=10)
+    clusters_malig <- igraph::cluster_louvain(g_malig)
+    sce_malignant$sub_cluster <- factor(clusters_malig$membership)
+    
+    # 5. Visualize the new sub-clusters
+    p_subcluster <- plotReducedDim(sce_malignant, "UMAP_malignant", colour_by="sub_cluster", text_by="sub_cluster") +
+        ggtitle("Sub-clusters within Malignant Cells")
+    
+    print(p_subcluster)
+    ggsave("results/melanoma/melanoma_umap_malignant_subclusters.png", plot = p_subcluster, width=8, height=8)
+    
+    message("Sub-clustering of malignant cells complete.")
+    
+    # 6. Save the new SCE object with sub-clustering results
+    saveRDS(sce_malignant, file="results/melanoma/melanoma_malignant_subclustered.rds")
+    
+} else {
+    message("Column 'CLUSTER' not found in colData. Skipping sub-clustering analysis.")
+}
